@@ -6,11 +6,6 @@ trainfile="train.csv"
 testfile="test.csv"
 learning_rate=0.1
 
-
-# PREPROCESS  DATA
-##
-#Embedding
-
 c=[]
 t=[]
 fout=[]
@@ -69,6 +64,47 @@ fout.append(l)
 l=[0,0,0,0,0,0,0,0,0,1]
 fout.append(l)
 
+X = 0
+y = 0
+test_input = 0
+# PREPROCESS  DATA
+##
+#Embedding
+def preprocess_data():
+    global X,y, test_input
+    train_data=filereader(trainfile,False)
+    X,y=sanitize(train_data)
+
+    X=embed_input(X)
+    y=embed_output(y)
+    for i in range(len(X)):
+        X[i]=np.array(X[i])
+        y[i]=np.array(y[i])
+    X=np.array(X)
+    y=np.array(y)
+
+    test_input=filereader(testfile,True)
+
+    test_input = embed_input(test_input)
+    for i in range(len(test_input)):
+        test_input[i]=np.array(test_input[i])
+
+    test_input=np.array(test_input)
+    #test_input=test_input[0:10]
+
+#reads the file and returns the data in raw form
+def filereader(file,tt):
+    with open(file,'r') as f:
+        reader = csv.reader(f)
+        data_list = list(reader)
+        #might need to pop the header
+        data_list.pop(0)
+        for i in range(len(data_list)):
+            for j in range(len(data_list[i])):
+                data_list[i][j]=int(data_list[i][j])
+    return data_list
+
+
 #converts inputs and outputs
 def convert_input(x):
     ans=[]
@@ -85,17 +121,16 @@ def convert_input(x):
     return ans
 
 
-def preprocess_input(input):
+def embed_input(input):
     for i in range(len(input)):
             input[i]=convert_input(input[i])
     return input
 
-def preprocess_output(output):
+def embed_output(output):
     for i in range(len(output)):
         output[i]=fout[output[i]]
     return output
 
-final_output = []
 def convert_back(output):
     final_op = np.zeros(len(output))
     for i in range(len(output)):
@@ -103,18 +138,7 @@ def convert_back(output):
         maxv = 0
         maxi = 0
         for j in range(10):
-            #output[i][j] = 0
-            '''
-            if(output[i][j]>.5):
-                output[i][j]=1
-            else:
-                output[i][j]=0
-            '''
             if(output[i][j] > maxv):
-                '''
-                print("j is",)
-                print(j)
-                '''
                 maxv = output[i][j]
                 maxi = j
 
@@ -138,120 +162,92 @@ def sanitize(data_list):
     return data_list,outputs
 
 
+preprocess_data()
 #------------------------------------------------------------------preprocessing/embedding ends here
 
 
+#######################
+##   ACTIVATION      ##
+#######################
 
-#   ACTIVATION
-##
 
 #Function differentiation
-def derivative(x):
+def sigmoid_prime(x):
     return (x)*(1.0-(x))
 
 #Function Evaluation
 def sigmoid(x):
     return 1.0/(1.0+np.exp(-x))
 
-#reads the file and returns the data in raw form
-def filereader(file,tt):
-    with open(file,'r') as f:
-        reader = csv.reader(f)
-        data_list = list(reader)
-        #might need to pop the header
-        data_list.pop(0)
-        for i in range(len(data_list)):
-            for j in range(len(data_list[i])):
-                data_list[i][j]=int(data_list[i][j])
-    return data_list
+
+def forward_prop():
+    global layer_0, layer_1, layer_2, layer_3, layer_1_error, layer_1_delta, layer_2_error, layer_2_delta, layer_3_error, layer_3_delta, layer_3_fin
+    global weight0, weight1, weight2
+ 
+    layer_0 = np.array([X[k]])
+    layer_1 = sigmoid(np.dot(layer_0,weight0))
+    layer_2 = sigmoid(np.dot(layer_1,weight1))
+    layer_3 = sigmoid(np.dot(layer_2,weight2))
 
 
-#X=X[0:20000]
-#y=y[0:20000]
-train_data=filereader(trainfile,False)
-X,y=sanitize(train_data)
-
-X=preprocess_input(X)
-y=preprocess_output(y)
-for i in range(len(X)):
-    X[i]=np.array(X[i])
-    y[i]=np.array(y[i])
-X=np.array(X)
-
-y=np.array(y)
-
-test_input=filereader(testfile,True)
-#test_input = test_input[0:4]
-
-#preprocess the data here
-test_input = convert_inputs(test_input)
-for i in range(len(test_input)):
-    test_input[i]=np.array(test_input[i])
-
-test_input=np.array(test_input)
-#test_input=test_input[0:10]
-#dimensions of the layers
-dim1 = len(X[0])
-dim2 = 18
-dim3 = 10
-dim4 = 10
-np.random.seed(1)
-#weight vectors
-weight0 = 2*np.random.random((dim1,dim2))-1
-weight1 = 2*np.random.random((dim2,dim3))-1
-weight2 = 2*np.random.random((dim3,dim4))-1
-
-#train the network
-#Stochastic Gradient Descent
-for j in range(5):
-    print(j)
-  
-    for k in range(len(X)):
-        
-        #FORWARD PROP
-  
-        layer_0 = np.array([X[k]])
-        layer_1 = sigmoid(np.dot(layer_0,weight0))
-        layer_2 = sigmoid(np.dot(layer_1,weight1))
-        layer_3 = sigmoid(np.dot(layer_2,weight2))
-  
-        layer_3_error = np.array([y[k]]) - layer_3
-  
-        layer_3_delta = layer_3_error * derivative(layer_3)
-
-        layer_2_error = layer_3_delta.dot(weight2.T)
-        layer_2_delta = layer_2_error * derivative(layer_2)
-        layer_1_error = layer_2_delta.dot(weight1.T)
-        layer_1_delta = layer_1_error * derivative(layer_1)
-        weight2 += learning_rate*layer_2.T.dot(layer_3_delta)
-        weight1 += learning_rate*layer_1.T.dot(layer_2_delta)
-        weight0 += learning_rate*layer_0.T.dot(layer_1_delta)
-layer_0 = test_input
-layer_1 = sigmoid(np.dot(layer_0,weight0))
-layer_2 = sigmoid(np.dot(layer_1,weight1))
-layer_3 = sigmoid(np.dot(layer_2,weight2))
-#print(layer_3)
-#print ("id,CLASS")
-#print(layer_3)
-layer_3_fin=convert_back(layer_3)
-#print(layer_3_fin)
-#df = pd.DataFrame(columns=data=layer_3,index['id','predicted_class'])
-arr = layer_3_fin.astype(int)
-#print(arr)
-id_ar = np.arange(1,arr.size+1)
-#print(id_ar)
-
-np.savetxt("output.csv", np.dstack((np.arange(0, arr.size),arr))[0],"%d,%d",header="id,predicted_class",comments='')
-
-'''
-for x in range(len(layer_3)):
-    df.loc[x]=[x, int(layer_3[x][0])]
-    if x%1000 == 0:
-        print(x)
-    #print (",".join([str(int(x)),str(int(layer_3[x][0]))]))
-    
+def cost_comp():
+    global layer_0, layer_1, layer_2, layer_3, layer_1_error, layer_1_delta, layer_2_error, layer_2_delta, layer_3_error, layer_3_delta, layer_3_fin
+    global weight0, weight1, weight2
+    #BACKWARD PROPAGATION
+    return np.array([y[k]]) - layer_3
 
 
-print(df)
-np.savetxt("output.csv",df,fmt='%d',delimiter=",",header="id,predicted_class",comments='')
-'''
+def back_prop():
+    global layer_0, layer_1, layer_2, layer_3, layer_1_error, layer_1_delta, layer_2_error, layer_2_delta, layer_3_error, layer_3_delta, layer_3_fin
+    global weight0, weight1, weight2
+    #BACKWARD PROPAGATION
+    layer_3_error = cost_comp() 
+    layer_3_delta = layer_3_error * sigmoid_prime(layer_3)
+
+    layer_2_error = layer_3_delta.dot(weight2.T)
+    layer_2_delta = layer_2_error * sigmoid_prime(layer_2)
+
+    layer_1_error = layer_2_delta.dot(weight1.T)
+    layer_1_delta = layer_1_error * sigmoid_prime(layer_1)
+
+def param_update():
+    #PARAMETER UPDATION
+    global layer_0, layer_1, layer_2, layer_3, layer_1_error, layer_1_delta, layer_2_error, layer_2_delta, layer_3_error, layer_3_delta, layer_3_fin
+    global weight0, weight1, weight2
+    weight2 += learning_rate*layer_2.T.dot(layer_3_delta)
+    weight1 += learning_rate*layer_1.T.dot(layer_2_delta)
+    weight0 += learning_rate*layer_0.T.dot(layer_1_delta)
+
+
+
+def train_nw():
+    global X,y, test_input
+    dim1 = len(X[0])
+    dim2 = 18
+    dim3 = 10
+    dim4 = 10
+    np.random.seed(1)
+    #weight vectors
+    weight0 = 2*np.random.random((dim1,dim2))-1
+    weight1 = 2*np.random.random((dim2,dim3))-1
+    weight2 = 2*np.random.random((dim3,dim4))-1
+
+    #train the network
+    #Stochastic Gradient Descent
+    for j in range(5):
+        print(j)
+        for k in range(len(X)):
+            forward_prop();
+            back_prop()
+
+    layer_0 = test_input
+    layer_1 = sigmoid(np.dot(layer_0,weight0))
+    layer_2 = sigmoid(np.dot(layer_1,weight1))
+    layer_3 = sigmoid(np.dot(layer_2,weight2))
+    layer_3_fin=convert_back(layer_3)
+    arr = layer_3_fin.astype(int)
+    id_ar = np.arange(1,arr.size+1)
+    np.savetxt("output.csv", np.dstack((np.arange(0, arr.size),arr))[0],"%d,%d",header="id,predicted_class",comments='')
+
+train_nw()
+
