@@ -5,7 +5,7 @@ import pandas as pd
 trainfile="train.csv"
 testfile="test.csv"
 learning_rate=0.1
-global layer_0, layer_1, layer_2, layer_3, layer_4, layer_1_error, layer_1_delta, layer_2_error, layer_2_delta, layer_3_error, layer_3_delta, layer_3_fin
+global layer_0, layer_1, layer_2, layer_3, layer_1_error, layer_1_delta, layer_2_error, layer_2_delta, layer_3_error, layer_3_delta, layer_3_fin
 global weight0, weight1, weight2
 global b1, b2, b3
 
@@ -67,16 +67,18 @@ fout.append(l)
 l=[0,0,0,0,0,0,0,0,0,1]
 fout.append(l)
 
-X = 0
-y = 0
-test_input = 0
+# PREPROCESS  DATA
+##
+#Embedding
 
-######################
-## PREPROCESS  DATA ##
-######################
-######################
-## Embedding        ##
-######################
+#separates input and output
+def sanitize(data_list):
+    outputs=list()
+    for i in range(len(data_list)):
+        outputs.append((data_list[i][-1]))
+        data_list[i].pop()
+    return data_list,outputs
+
 
 def preprocess_data():
     global X,y, test_input
@@ -98,7 +100,6 @@ def preprocess_data():
         test_input[i]=np.array(test_input[i])
 
     test_input=np.array(test_input)
-    #test_input=test_input[0:10]
 
 #reads the file and returns the data in raw form
 def filereader(file):
@@ -129,10 +130,10 @@ def convert_input(x):
     return ans
 
 
-def embed_input(input):
-    for i in range(len(input)):
-            input[i]=convert_input(input[i])
-    return input
+def embed_input(ip):
+    for i in range(len(ip)):
+            ip[i]=convert_input(ip[i])
+    return ip
 
 def embed_output(output):
     for i in range(len(output)):
@@ -142,7 +143,6 @@ def embed_output(output):
 def convert_back(output):
     final_op = np.zeros(len(output))
     for i in range(len(output)):
-        #print("i = ", i)
         maxv = 0
         maxi = 0
         for j in range(10):
@@ -160,14 +160,6 @@ def convert_back(output):
                 output[i]=[j]
                 break
     return final_op 
-
-#separates input and output
-def sanitize(data_list):
-    outputs=list()
-    for i in range(len(data_list)):
-        outputs.append((data_list[i][-1]))
-        data_list[i].pop()
-    return data_list,outputs
 
 
 preprocess_data()
@@ -187,17 +179,13 @@ def sigmoid_prime(x):
 def sigmoid(x):
     return 1.0/(1.0+np.exp(-x))
 
-def softmax(x):
-    """Compute softmax values for each sets of scores in x."""
-    e_x = np.exp(x - np.max(x))
-    return e_x / e_x.sum()
 
-def forward_prop(ip):
-    global layer_0, layer_1, layer_2, layer_3, layer_4, layer_1_error, layer_1_delta, layer_2_error, layer_2_delta, layer_3_error, layer_3_delta, layer_3_fin
+def forward_prop(k):
+    global layer_0, layer_1, layer_2, layer_3, layer_1_error, layer_1_delta, layer_2_error, layer_2_delta, layer_3_error, layer_3_delta, layer_3_fin
     global weight0, weight1, weight2
     global b1, b2, b3
 
-    layer_0 = np.array(ip)
+    layer_0 = np.array([X[k]])
     layer_1 = sigmoid(np.dot(layer_0,weight0))
     layer_2 = sigmoid(np.dot(layer_1,weight1))
     layer_3 = sigmoid(np.dot(layer_2,weight2))
@@ -206,9 +194,8 @@ def forward_prop(ip):
 def cost_comp(k):
     global layer_0, layer_1, layer_2, layer_3, layer_1_error, layer_1_delta, layer_2_error, layer_2_delta, layer_3_error, layer_3_delta, layer_3_fin
     global weight0, weight1, weight2
-
-    H_error = -1*np.dot(np.array([y[k]]),np.log(layer_3).T)
-    return H_error 
+    #BACKWARD PROPAGATION
+    return layer_3-np.array([y[k]])
 
 
 def back_prop(k):
@@ -230,9 +217,9 @@ def param_update():
     #PARAMETER UPDATION
     global layer_0, layer_1, layer_2, layer_3, layer_1_error, layer_1_delta, layer_2_error, layer_2_delta, layer_3_error, layer_3_delta, layer_3_fin
     global weight0, weight1, weight2
-    weight2 += learning_rate*layer_2.T.dot(layer_3_delta)
-    weight1 += learning_rate*layer_1.T.dot(layer_2_delta)
-    weight0 += learning_rate*layer_0.T.dot(layer_1_delta)
+    weight2 += -learning_rate*layer_2.T.dot(layer_3_delta)
+    weight1 += -learning_rate*layer_1.T.dot(layer_2_delta)
+    weight0 += -learning_rate*layer_0.T.dot(layer_1_delta)
 
 
 
@@ -253,24 +240,20 @@ def model():
 
     #train the network
     #Stochastic Gradient Descent
-    for j in range(5):
+    for j in range(25):
         print(j)
         for k in range(len(X)):
-            ip = [X[k]]
-            forward_prop(ip);
+            forward_prop(k);
             back_prop(k)
+            param_update()
 
-    #Evaluate the test data
-    forward_prop(test_input)
-    #layer_0 = test_input
-    #layer_1 = sigmoid(np.dot(layer_0,weight0))
-    #layer_2 = sigmoid(np.dot(layer_1,weight1))
-    #layer_3 = sigmoid(np.dot(layer_2,weight2))
+    layer_0 = test_input
+    layer_1 = sigmoid(np.dot(layer_0,weight0))
+    layer_2 = sigmoid(np.dot(layer_1,weight1))
+    layer_3 = sigmoid(np.dot(layer_2,weight2))
     layer_3_fin=convert_back(layer_3)
     arr = layer_3_fin.astype(int)
-
-
-    #Write output to csv file
+    id_ar = np.arange(1,arr.size+1)
     np.savetxt("output.csv", np.dstack((np.arange(0, arr.size),arr))[0],"%d,%d",header="id,predicted_class",comments='')
 
 model()
