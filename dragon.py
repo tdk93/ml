@@ -5,9 +5,12 @@ import pandas as pd
 trainfile="train.csv"
 testfile="test.csv"
 learning_rate=0.1
-global layer_0, layer_1, layer_2, layer_3, layer_1_error, layer_1_delta, layer_2_error, layer_2_delta, layer_3_error, layer_3_delta, layer_3_fin
-global weight0, weight1, weight2
-global b1, b2, b3
+
+global total_layers
+global opLayerNo
+global dimLi, layerLi, weightLi, layerErLi, layerDeLi
+global X,y
+    
 
 c=[]
 t=[]
@@ -67,8 +70,9 @@ fout.append(l)
 l=[0,0,0,0,0,0,0,0,0,1]
 fout.append(l)
 
-# PREPROCESS  DATA
-##
+#########################
+##  PREPROCESS  DATA   ##
+#########################
 #Embedding
 
 #separates input and output
@@ -181,62 +185,104 @@ def sigmoid(x):
 
 
 def forward_prop(k):
-    global layer_0, layer_1, layer_2, layer_3, layer_1_error, layer_1_delta, layer_2_error, layer_2_delta, layer_3_error, layer_3_delta, layer_3_fin
-    global weight0, weight1, weight2
-    global b1, b2, b3
 
-    layer_0 = np.array([X[k]])
-    layer_1 = sigmoid(np.dot(layer_0,weight0))
-    layer_2 = sigmoid(np.dot(layer_1,weight1))
-    layer_3 = sigmoid(np.dot(layer_2,weight2))
+    ##########################
+    ## FORWARD  PROPAGATION ##
+    ##########################
+
+
+    global total_layers
+    global opLayerNo
+    global dimLi, layerLi, weightLi, layerErLi, layerDeLi
+    global X
+    '''
+    print(X[0])
+    print(k)
+    print(X[k])
+    print(type(k))
+    '''
+    layerLi[0] = np.array([X[k]])
+    for x in range(1,total_layers):
+        layerLi[x] = sigmoid(np.dot(layerLi[x-1],weightLi[x-1]))
 
 
 def cost_comp(k):
-    global layer_0, layer_1, layer_2, layer_3, layer_1_error, layer_1_delta, layer_2_error, layer_2_delta, layer_3_error, layer_3_delta, layer_3_fin
-    global weight0, weight1, weight2
-    #BACKWARD PROPAGATION
-    return layer_3-np.array([y[k]])
+
+    ##########################
+    ## cost computation     ##
+    ##########################
+
+
+    global total_layers
+    global opLayerNo
+    global dimLi, layerLi, weightLi, layerErLi, layerDeLi
+    
+    return layerLi[opLayerNo]-np.array([y[k]])
 
 
 def back_prop(k):
-    global layer_0, layer_1, layer_2, layer_3, layer_1_error, layer_1_delta, layer_2_error, layer_2_delta, layer_3_error, layer_3_delta, layer_3_fin
-    global weight0, weight1, weight2
-    global b1, b2, b3
 
-    #BACKWARD PROPAGATION
-    layer_3_error = cost_comp(k) 
-    layer_3_delta = layer_3_error * sigmoid_prime(layer_3)
+    ##########################
+    ## backward propagation ##
+    ##########################
 
-    layer_2_error = layer_3_delta.dot(weight2.T)
-    layer_2_delta = layer_2_error * sigmoid_prime(layer_2)
+    global total_layers
+    global opLayerNo
+    global dimLi, layerLi, weightLi, layerErLi, layerDeLi
+    layerErLi = [0]*total_layers
+    layerDeLi = [0]*total_layers   
+    
+    layerErLi[opLayerNo] = cost_comp(k)
+    layerDeLi[opLayerNo] = layerErLi[opLayerNo]*sigmoid_prime(layerLi[opLayerNo])
 
-    layer_1_error = layer_2_delta.dot(weight1.T)
-    layer_1_delta = layer_1_error * sigmoid_prime(layer_1)
+    #layer_3_error = cost_comp(k,layerLi) 
+    
+    for x in range(opLayerNo-1, 0, -1):
+        layerErLi[x] = layerDeLi[x+1].dot(weightLi[x].T)
+        layerDeLi[x] = layerErLi[x]*sigmoid_prime(layerLi[x])
 
 def param_update():
-    #PARAMETER UPDATION
-    global layer_0, layer_1, layer_2, layer_3, layer_1_error, layer_1_delta, layer_2_error, layer_2_delta, layer_3_error, layer_3_delta, layer_3_fin
-    global weight0, weight1, weight2
-    weight2 += -learning_rate*layer_2.T.dot(layer_3_delta)
-    weight1 += -learning_rate*layer_1.T.dot(layer_2_delta)
-    weight0 += -learning_rate*layer_0.T.dot(layer_1_delta)
 
+    #########################
+    ## PARAMETER UPDATION  ##
+    #########################
 
+    global total_layers
+    global opLayerNo
+    global dimLi, layerLi, weightLi, layerErLi, layerDeLi
 
-def model():
+    for x in range(opLayerNo-1,-1,-1):
+        weightLi[x] += -learning_rate*layerLi[x].T.dot(layerDeLi[x+1])
+
+def model(hidden_layers_no):
+
+    #########################
+    ##        MODEL        ##
+    #########################
+
+    global total_layers
+    global opLayerNo
+    global dimLi, layerLi, weightLi, layerErLi, layerDeLi
     global X,y, test_input
-    global layer_0, layer_1, layer_2, layer_3, layer_1_error, layer_1_delta, layer_2_error, layer_2_delta, layer_3_error, layer_3_delta, layer_3_fin
-    global weight0, weight1, weight2
- 
-    dim1 = len(X[0])
-    dim2 = 18
-    dim3 = 10
-    dim4 = 10
+
+    total_layers = hidden_layers_no+2
+    ipLayerNo = 0
+    opLayerNo = hidden_layers_no+1
+    dimLi = []
+    layerLi = [0]*total_layers
+
+
+    dimLi.append(len(X[0]))
+    dimLi.append(18)
+    for x in range(hidden_layers_no-1):
+        dimLi.append(10)
+        
+    dimLi.append(10)
+
     np.random.seed(1)
-    #weight vectors
-    weight0 = 2*np.random.random((dim1,dim2))-1
-    weight1 = 2*np.random.random((dim2,dim3))-1
-    weight2 = 2*np.random.random((dim3,dim4))-1
+    weightLi = []
+    for x in range(hidden_layers_no+1):
+        weightLi.append(2*np.random.random((dimLi[x],dimLi[x+1]))-1)
 
     #train the network
     #Stochastic Gradient Descent
@@ -244,16 +290,17 @@ def model():
         print(j)
         for k in range(len(X)):
             forward_prop(k);
-            back_prop(k)
+            back_prop(k);
             param_update()
 
-    layer_0 = test_input
-    layer_1 = sigmoid(np.dot(layer_0,weight0))
-    layer_2 = sigmoid(np.dot(layer_1,weight1))
-    layer_3 = sigmoid(np.dot(layer_2,weight2))
-    layer_3_fin=convert_back(layer_3)
-    arr = layer_3_fin.astype(int)
+    layerLi[0] = test_input 
+    for x in range(1,total_layers):
+        layerLi[x] = sigmoid(np.dot(layerLi[x-1],weightLi[x-1]))
+
+
+    layer_fin=convert_back(layerLi[opLayerNo])
+    arr = layer_fin.astype(int)
     id_ar = np.arange(1,arr.size+1)
     np.savetxt("output.csv", np.dstack((np.arange(0, arr.size),arr))[0],"%d,%d",header="id,predicted_class",comments='')
 
-model()
+model(2)
