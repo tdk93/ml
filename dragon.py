@@ -8,7 +8,7 @@ learning_rate=0.1
 
 global total_layers
 global opLayerNo
-global dimLi, layerLi, weightLi, layerErLi, layerDeLi
+global dimLi, layerLi, weightLi, layerErLi, layerDeLi, softmaxOp
 global X,y
     
 
@@ -174,6 +174,10 @@ preprocess_data()
 ##   ACTIVATION      ##
 #######################
 
+#Softmax
+def softmax(x):
+    e_x = np.exp(x - np.max(x))
+    return e_x / e_x.sum()
 
 #Function differentiation
 def sigmoid_prime(x):
@@ -193,17 +197,15 @@ def forward_prop(k):
 
     global total_layers
     global opLayerNo
-    global dimLi, layerLi, weightLi, layerErLi, layerDeLi
+    global dimLi, layerLi, weightLi, layerErLi, layerDeLi, softmaxOp, softmaxLayer
     global X
-    '''
-    print(X[0])
-    print(k)
-    print(X[k])
-    print(type(k))
-    '''
     layerLi[0] = np.array([X[k]])
     for x in range(1,total_layers):
         layerLi[x] = sigmoid(np.dot(layerLi[x-1],weightLi[x-1]))
+
+    layerLi[softmaxLayer] = softmax(layerLi[opLayerNo])
+    
+
 
 
 def cost_comp(k):
@@ -215,9 +217,9 @@ def cost_comp(k):
 
     global total_layers
     global opLayerNo
-    global dimLi, layerLi, weightLi, layerErLi, layerDeLi
+    global dimLi, layerLi, weightLi, layerErLi, layerDeLi, softmaxOp, softmaxLayer
     
-    return layerLi[opLayerNo]-np.array([y[k]])
+    return layerLi[softmaxLayer]-np.array([y[k]])
 
 
 def back_prop(k):
@@ -228,14 +230,12 @@ def back_prop(k):
 
     global total_layers
     global opLayerNo
-    global dimLi, layerLi, weightLi, layerErLi, layerDeLi
+    global dimLi, layerLi, weightLi, layerErLi, layerDeLi, softmaxOp, softmaxLayer
     layerErLi = [0]*total_layers
     layerDeLi = [0]*total_layers   
     
     layerErLi[opLayerNo] = cost_comp(k)
     layerDeLi[opLayerNo] = layerErLi[opLayerNo]*sigmoid_prime(layerLi[opLayerNo])
-
-    #layer_3_error = cost_comp(k,layerLi) 
     
     for x in range(opLayerNo-1, 0, -1):
         layerErLi[x] = layerDeLi[x+1].dot(weightLi[x].T)
@@ -249,7 +249,7 @@ def param_update():
 
     global total_layers
     global opLayerNo
-    global dimLi, layerLi, weightLi, layerErLi, layerDeLi
+    global dimLi, layerLi, weightLi, layerErLi, layerDeLi,softmaxOp, softmaxLayer
 
     for x in range(opLayerNo-1,-1,-1):
         weightLi[x] += -learning_rate*layerLi[x].T.dot(layerDeLi[x+1])
@@ -262,14 +262,15 @@ def model(hidden_layers_no):
 
     global total_layers
     global opLayerNo
-    global dimLi, layerLi, weightLi, layerErLi, layerDeLi
+    global dimLi, layerLi, weightLi, layerErLi, layerDeLi, softmaxOp, softmaxLayer
     global X,y, test_input
 
     total_layers = hidden_layers_no+2
     ipLayerNo = 0
     opLayerNo = hidden_layers_no+1
+    softmaxLayer = opLayerNo+1
     dimLi = []
-    layerLi = [0]*total_layers
+    layerLi = [0]*(total_layers+1)
 
 
     dimLi.append(len(X[0]))
@@ -286,7 +287,7 @@ def model(hidden_layers_no):
 
     #train the network
     #Stochastic Gradient Descent
-    for j in range(25):
+    for j in range(5):
         print(j)
         for k in range(len(X)):
             forward_prop(k);
@@ -297,8 +298,10 @@ def model(hidden_layers_no):
     for x in range(1,total_layers):
         layerLi[x] = sigmoid(np.dot(layerLi[x-1],weightLi[x-1]))
 
+    layerLi[softmaxLayer] = softmax(layerLi[opLayerNo])
 
-    layer_fin=convert_back(layerLi[opLayerNo])
+
+    layer_fin=convert_back(layerLi[softmaxLayer])
     arr = layer_fin.astype(int)
     id_ar = np.arange(1,arr.size+1)
     np.savetxt("output.csv", np.dstack((np.arange(0, arr.size),arr))[0],"%d,%d",header="id,predicted_class",comments='')
